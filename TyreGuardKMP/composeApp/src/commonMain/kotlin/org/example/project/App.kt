@@ -1,0 +1,247 @@
+package org.example.project
+
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.*
+import org.example.project.analysis.AnalysisScreen
+import org.example.project.analysis.TirePosition
+import org.example.project.analysis.TireStatus
+import org.example.project.analysis.TreadHealth
+import org.example.project.analysis.TyreDetailScreen
+import org.example.project.auth.SupabaseAuthService
+import org.example.project.data.UserDataRepository
+import org.jetbrains.compose.ui.tooling.preview.Preview
+
+/**
+ * Main navigation state for the app flow:
+ * Login -> Onboarding -> Setup -> Dashboard -> Profile/Camera/Analysis/TyreDetail
+ * 
+ * 3D Viewer flow: Camera (capture 2D image) -> TyreView3D (convert to 3D and display)
+ */
+sealed class AppScreen {
+    object Login : AppScreen()
+    object Onboarding : AppScreen()
+    object Setup : AppScreen()
+    object Dashboard : AppScreen()
+    object Profile : AppScreen()
+    object Camera : AppScreen()
+    object Analysis : AppScreen()
+    object Notifications : AppScreen()
+    object Settings : AppScreen()
+    data class TyreDetail(val tireStatus: TireStatus) : AppScreen()
+    
+    // 3D Viewer screen - takes image path from Camera, converts to 3D
+    data class TyreView3D(val imagePath: String? = null, val modelPath: String? = null) : AppScreen()
+}
+
+@Composable
+@Preview
+fun App() {
+    MaterialTheme {
+        var currentScreen by remember { mutableStateOf<AppScreen>(AppScreen.Login) }
+        
+        // Get user data from repository
+        val userProfileData by UserDataRepository.userProfile.collectAsState()
+        val authUser by SupabaseAuthService.currentUser.collectAsState()
+        
+        val currentUserName = userProfileData?.name?.ifBlank { null }
+            ?: userProfileData?.displayName?.ifBlank { null }
+            ?: authUser?.displayName
+            ?: "User"
+
+        when (val screen = currentScreen) {
+            is AppScreen.Login -> {
+                LoginScreen(
+                    onLoginSuccess = {
+                        // After login, show onboarding
+                        currentScreen = AppScreen.Onboarding
+                    }
+                )
+            }
+            
+            is AppScreen.Onboarding -> {
+                OnboardingScreen(
+                    onFinishOnboarding = {
+                        // After onboarding, show setup flow
+                        currentScreen = AppScreen.Setup
+                    }
+                )
+            }
+            
+            is AppScreen.Setup -> {
+                SetupFlow(
+                    onFinishedSetup = {
+                        // After setup, navigate to dashboard
+                        currentScreen = AppScreen.Dashboard
+                    }
+                )
+            }
+            
+            is AppScreen.Dashboard -> {
+                DashboardScreen(
+                    userName = currentUserName,
+                    onCameraClick = {
+                        currentScreen = AppScreen.Camera
+                    },
+                    onTyreClick = { tyreData ->
+                        // Convert TyreData to TireStatus for detail screen
+                        val tireStatus = tyreData.toTireStatus()
+                        currentScreen = AppScreen.TyreDetail(tireStatus)
+                    },
+                    onView3DClick = {
+                        currentScreen = AppScreen.TyreView3D()
+                    },
+                    onServiceCenterClick = { center ->
+                        // TODO: handle service center click
+                    }
+                )
+            }
+            
+            is AppScreen.Profile -> {
+                ProfileScreen(
+                    userProfile = UserProfile(),
+                    onBackClick = {
+                        currentScreen = AppScreen.Dashboard
+                    },
+                    onEditProfile = {
+                        // TODO: open profile edit screen
+                    },
+                    onNotificationsClick = {
+                        currentScreen = AppScreen.Notifications
+                    },
+                    onLanguageClick = {
+                        // TODO: open language settings
+                    },
+                    onHelpClick = {
+                        // TODO: open help screen
+                    },
+                    onLogout = {
+                        // Return to login on logout
+                        currentScreen = AppScreen.Login
+                    }
+                )
+            }
+            
+            is AppScreen.Camera -> {
+                // Camera screen - platform-specific implementation
+                // On Android: Uses CameraX for real capture
+                // On iOS: Shows placeholder
+                CameraScreenPlaceholder(
+                    onBackClick = {
+                        currentScreen = AppScreen.Dashboard
+                    },
+                    onImageCaptured = { imagePath ->
+                        // Navigate to 3D viewer with the captured image
+                        currentScreen = AppScreen.TyreView3D(imagePath = imagePath)
+                    },
+                    onGalleryClick = {
+                        // TODO: Open gallery picker
+                    }
+                )
+            }
+            
+            is AppScreen.Analysis -> {
+                AnalysisScreen(
+                    onBackClick = {
+                        currentScreen = AppScreen.Dashboard
+                    },
+                    onTyreClick = { tire ->
+                        currentScreen = AppScreen.TyreDetail(tire)
+                    }
+                )
+            }
+            
+            is AppScreen.TyreDetail -> {
+                TyreDetailScreen(
+                    tireStatus = screen.tireStatus,
+                    onBack = {
+                        currentScreen = AppScreen.Dashboard
+                    },
+                    onScheduleService = {
+                        // TODO: Navigate to service scheduling
+                        currentScreen = AppScreen.Dashboard
+                    }
+                )
+            }
+            
+            is AppScreen.Notifications -> {
+                NotificationsScreen(
+                    onBackClick = {
+                        currentScreen = AppScreen.Dashboard
+                    }
+                )
+            }
+            
+            is AppScreen.Settings -> {
+                SettingsScreen(
+                    onBackClick = {
+                        currentScreen = AppScreen.Dashboard
+                    }
+                )
+            }
+            
+            // 3D Viewer - Android-specific implementation
+            // Takes image path, converts to 3D, and displays the model
+            is AppScreen.TyreView3D -> {
+                Tyre3DViewerScreenPlaceholder(
+                    imagePath = screen.imagePath,
+                    modelPath = screen.modelPath,
+                    onBackClick = {
+                        currentScreen = AppScreen.Dashboard
+                    },
+                    onCaptureAnother = {
+                        currentScreen = AppScreen.Camera
+                    }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Extension function to convert TyreData (Dashboard model) to TireStatus (Analysis model)
+ */
+private fun TyreData.toTireStatus(): TireStatus {
+    val position = when (id) {
+        "FL" -> TirePosition.FRONT_LEFT
+        "FR" -> TirePosition.FRONT_RIGHT
+        "RL" -> TirePosition.REAR_LEFT
+        "RR" -> TirePosition.REAR_RIGHT
+        else -> TirePosition.FRONT_LEFT
+    }
+    
+    val treadHealth = when {
+        treadDepth >= 6f -> TreadHealth.EXCELLENT
+        treadDepth >= 4.5f -> TreadHealth.GOOD
+        treadDepth >= 3f -> TreadHealth.FAIR
+        treadDepth >= 1.6f -> TreadHealth.WORN
+        else -> TreadHealth.CRITICAL
+    }
+    
+    val defects = if (status == TyreStatus.CRITICAL) {
+        listOf("Inspection Required")
+    } else {
+        emptyList()
+    }
+    
+    return TireStatus(
+        position = position,
+        pressurePsi = psi,
+        temperatureCelsius = temp.toFloat(),
+        treadHealth = treadHealth,
+        defects = defects
+    )
+}
+
+/**
+ * Placeholder for 3D Viewer screen - will be replaced by actual implementation on Android
+ * 
+ * @param imagePath Path to captured 2D image (will trigger 3D conversion)
+ * @param modelPath Path to existing 3D model (if already converted)
+ */
+@Composable
+expect fun Tyre3DViewerScreenPlaceholder(
+    imagePath: String?,
+    modelPath: String?,
+    onBackClick: () -> Unit,
+    onCaptureAnother: () -> Unit
+)
