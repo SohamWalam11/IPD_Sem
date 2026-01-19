@@ -288,21 +288,19 @@ fun Simple3DViewerScreen(
 }
 
 /**
- * 3D Model viewer using SceneView
+ * 3D Model viewer using Interactive3DViewer with full touch controls
  */
 @Composable
 private fun Model3DViewer(
     modelPath: String,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-    
-    // Use the TyreModelViewer composable
-    TyreModelViewer(
+    // Use the new Interactive3DViewer with zoom, rotate, pan controls
+    Interactive3DViewer(
         modelPath = modelPath,
         modifier = modifier,
         showControls = true,
-        autoRotate = false
+        initialAutoRotate = true  // Start with auto-rotation for nice effect
     )
 }
 

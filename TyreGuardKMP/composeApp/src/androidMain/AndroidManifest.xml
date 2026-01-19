@@ -8,6 +8,10 @@
     <!-- Internet for loading remote models -->
     <uses-permission android:name="android.permission.INTERNET" />
     
+    <!-- Location permissions for nearby service centers -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    
     <!-- AR Core support - "required" means app won't install on non-AR devices -->
     <!-- Use "optional" to allow installation but disable AR features on unsupported devices -->
     <uses-feature android:name="android.hardware.camera.ar" android:required="false" />
@@ -21,6 +25,11 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        
+        <!-- Google Maps API Key -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}" />
         
         <!-- ARCore metadata - indicates app uses AR -->
         <meta-data android:name="com.google.ar.core" android:value="optional" />

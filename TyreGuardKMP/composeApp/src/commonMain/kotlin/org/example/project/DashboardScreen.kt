@@ -40,6 +40,12 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import org.example.project.components.TyrePressureOverviewCard
+import org.example.project.components.TyrePressureData
+import org.example.project.components.TyrePosition
+import org.example.project.components.TyreHealthStatus
+import org.example.project.components.CarBodyType
+import org.example.project.components.MotionTyreDetail
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -122,9 +128,38 @@ fun DashboardScreen(
     onCameraClick: () -> Unit = {},
     onTyreClick: (TyreData) -> Unit = {},
     onView3DClick: () -> Unit = {},
-    onServiceCenterClick: (ServiceCenter) -> Unit = {}
+    onServiceCenterClick: (ServiceCenter) -> Unit = {},
+    onAnalysisClick: () -> Unit = {},
+    onFindServiceCenter: () -> Unit = {}  // Navigate to Google Maps service finder
 ) {
     val scope = rememberCoroutineScope()
+    
+    // State for selected tyre detail (MotionLayout-style detail view)
+    var selectedTyreForDetail by remember { mutableStateOf<TyrePressureData?>(null) }
+    
+    // Convert sample tyres to TyrePressureData for the overview component
+    val tyrePressureDataList = remember {
+        sampleTyres.map { tyre ->
+            TyrePressureData(
+                position = when (tyre.id) {
+                    "FL" -> TyrePosition.FRONT_LEFT
+                    "FR" -> TyrePosition.FRONT_RIGHT
+                    "RL" -> TyrePosition.REAR_LEFT
+                    "RR" -> TyrePosition.REAR_RIGHT
+                    else -> TyrePosition.FRONT_LEFT
+                },
+                pressure = tyre.psi,
+                temperature = tyre.temp,
+                treadDepth = tyre.treadDepth,
+                status = when (tyre.status) {
+                    TyreStatus.GOOD -> TyreHealthStatus.GOOD
+                    TyreStatus.WARNING -> TyreHealthStatus.WARNING
+                    TyreStatus.CRITICAL -> TyreHealthStatus.CRITICAL
+                },
+                defects = if (tyre.status == TyreStatus.CRITICAL) listOf("Low pressure", "Wear detected") else emptyList()
+            )
+        }
+    }
     
     // Calculate overall health score
     val healthScore = remember {
@@ -136,67 +171,96 @@ fun DashboardScreen(
     
     val issueCount = sampleTyres.count { it.status != TyreStatus.GOOD }
 
-    Scaffold(
-        containerColor = Color.Transparent,
-        bottomBar = { 
-            PremiumBottomNavBar(onCameraClick = onCameraClick)
-        }
-    ) { innerPadding ->
-        Box(modifier = modifier.fillMaxSize()) {
-            // Background
-            DashboardBackground()
-
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentPadding = PaddingValues(bottom = 24.dp)
-            ) {
-                // 1. Header Section
-                item { 
-                    DashboardHeader(
-                        userName = userName,
-                        notificationCount = issueCount
-                    ) 
-                }
-
-                // 2. Animated Health Score Card
-                item { 
-                    AnimatedHealthScoreCard(score = healthScore) 
-                }
-
-                // 3. Tyre Overview Carousel
-                item { 
-                    TyreOverviewSection(
-                        tyres = sampleTyres,
-                        onTyreClick = onTyreClick,
-                        onView3DClick = onView3DClick
-                    ) 
-                }
-
-                // 4. Latest Analysis Section
-                item { 
-                    SectionHeader(title = "Latest Analysis", action = "Show All >") 
-                }
-                item { 
-                    LatestAnalysisCard(report = sampleReports.first()) 
-                }
-
-                // 5. Service Centers Section (Staggered Animation)
-                item { 
-                    ServiceCentersSectionHeader() 
-                }
-                itemsIndexed(sampleCenters) { index, center ->
-                    StaggeredServiceCenterCard(
-                        center = center,
-                        index = index,
-                        onClick = { onServiceCenterClick(center) }
-                    )
-                }
-
-                // Extra space for bottom nav
-                item { Spacer(modifier = Modifier.height(32.dp)) }
+    Box(modifier = modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            bottomBar = { 
+                PremiumBottomNavBar(
+                    onCameraClick = onCameraClick,
+                    onAnalysisClick = onAnalysisClick
+                )
             }
+        ) { innerPadding ->
+            Box(modifier = Modifier.fillMaxSize()) {
+                // Background
+                DashboardBackground()
+
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    contentPadding = PaddingValues(bottom = 24.dp)
+                ) {
+                    // 1. Header Section
+                    item { 
+                        DashboardHeader(
+                            userName = userName,
+                            notificationCount = issueCount
+                        ) 
+                    }
+
+                    // 2. Animated Health Score Card
+                    item { 
+                        AnimatedHealthScoreCard(score = healthScore) 
+                    }
+                    
+                    // 2.5. Tyre Pressure Overview (Rivian-style car view)
+                    item {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        TyrePressureOverviewCard(
+                            tyreData = tyrePressureDataList,
+                            carBodyType = CarBodyType.SUV, // TODO: Get from user profile
+                            lastReading = "14:15",
+                            onTyreClick = { tyre ->
+                                selectedTyreForDetail = tyre
+                            }
+                        )
+                    }
+
+                    // 3. Tyre Overview Carousel
+                    item { 
+                        TyreOverviewSection(
+                            tyres = sampleTyres,
+                            onTyreClick = onTyreClick,
+                            onView3DClick = onView3DClick
+                        ) 
+                    }
+
+                    // 4. Latest Analysis Section
+                    item { 
+                        SectionHeader(title = "Latest Analysis", action = "Show All >") 
+                    }
+                    item { 
+                        LatestAnalysisCard(report = sampleReports.first()) 
+                    }
+
+                    // 5. Service Centers Section (Staggered Animation)
+                    item { 
+                        ServiceCentersSectionHeader(
+                            onFindNearbyClick = onFindServiceCenter
+                        ) 
+                    }
+                    itemsIndexed(sampleCenters) { index, center ->
+                        StaggeredServiceCenterCard(
+                            center = center,
+                            index = index,
+                            onClick = { onServiceCenterClick(center) }
+                        )
+                    }
+
+                    // Extra space for bottom nav
+                    item { Spacer(modifier = Modifier.height(32.dp)) }
+                }
+            }
+        }
+        
+        // MotionLayout-style tyre detail overlay
+        selectedTyreForDetail?.let { tyre ->
+            MotionTyreDetail(
+                tyre = tyre,
+                isVisible = true,
+                onDismiss = { selectedTyreForDetail = null }
+            )
         }
     }
 }
@@ -914,7 +978,9 @@ private fun SectionHeader(
 }
 
 @Composable
-private fun ServiceCentersSectionHeader() {
+private fun ServiceCentersSectionHeader(
+    onFindNearbyClick: () -> Unit = {}
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -927,13 +993,33 @@ private fun ServiceCentersSectionHeader() {
             fontWeight = FontWeight.Bold,
             color = DarkViolet
         )
-        Spacer(modifier = Modifier.width(8.dp))
-        Icon(
-            Icons.Default.KeyboardArrowDown,
-            contentDescription = null,
-            tint = Color.Gray,
-            modifier = Modifier.size(20.dp)
-        )
+        Spacer(modifier = Modifier.weight(1f))
+        
+        // Find Nearby button with Google Maps
+        Surface(
+            onClick = onFindNearbyClick,
+            shape = RoundedCornerShape(20.dp),
+            color = PrimaryViolet.copy(alpha = 0.1f)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.LocationOn,
+                    contentDescription = null,
+                    tint = PrimaryViolet,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    "Find Nearby",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = PrimaryViolet
+                )
+            }
+        }
     }
 }
 
@@ -1113,46 +1199,69 @@ private fun StaggeredServiceCenterCard(
 
 @Composable
 private fun PremiumBottomNavBar(
-    onCameraClick: () -> Unit
+    onCameraClick: () -> Unit,
+    onAnalysisClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(80.dp)
     ) {
-        // Background Navigation Bar
-        NavigationBar(
-            containerColor = Color.White,
+        // Background Navigation Bar using Row for proper spacing
+        Surface(
+            color = Color.White,
             tonalElevation = 8.dp,
+            shadowElevation = 8.dp,
             modifier = Modifier
                 .fillMaxWidth()
+                .height(64.dp)
                 .align(Alignment.BottomCenter)
         ) {
-            // Home
-            NavigationBarItem(
-                icon = { 
-                    Icon(
-                        Icons.Default.Home,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp)
-                    )
-                },
-                label = { Text("Home", fontSize = 11.sp) },
-                selected = true,
-                onClick = { },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = PrimaryViolet,
-                    selectedTextColor = PrimaryViolet,
-                    indicatorColor = PrimaryViolet.copy(alpha = 0.1f)
-                )
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Home
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { }
+                        .padding(vertical = 8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                color = PrimaryViolet.copy(alpha = 0.1f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Home,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                            tint = PrimaryViolet
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Home", fontSize = 11.sp, color = PrimaryViolet)
+                }
 
-            // Spacer for floating button
-            Spacer(modifier = Modifier.weight(1f))
+                // Spacer for floating button
+                Spacer(modifier = Modifier.width(80.dp))
 
-            // Analysis
-            NavigationBarItem(
-                icon = { 
+                // Analysis
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onAnalysisClick() }
+                        .padding(vertical = 8.dp)
+                ) {
                     BadgedBox(
                         badge = {
                             Badge(
@@ -1166,20 +1275,14 @@ private fun PremiumBottomNavBar(
                         Icon(
                             Icons.Default.Analytics,
                             contentDescription = null,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(24.dp),
+                            tint = Color.Gray
                         )
                     }
-                },
-                label = { Text("Analysis", fontSize = 11.sp) },
-                selected = false,
-                onClick = { },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = PrimaryViolet,
-                    selectedTextColor = PrimaryViolet,
-                    unselectedIconColor = Color.Gray,
-                    unselectedTextColor = Color.Gray
-                )
-            )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Analysis", fontSize = 11.sp, color = Color.Gray)
+                }
+            }
         }
 
         // Floating Camera Button

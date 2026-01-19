@@ -82,7 +82,8 @@ sealed class EnhancedLoginState {
 @Composable
 fun LoginScreen(
     modifier: Modifier = Modifier,
-    onLoginSuccess: () -> Unit
+    onLoginSuccess: () -> Unit,
+    onForgotPassword: () -> Unit = {}
 ) {
     var loginState by remember { mutableStateOf<EnhancedLoginState>(EnhancedLoginState.Idle) }
     var authMode by remember { mutableStateOf(AuthMode.SignIn) }
@@ -385,6 +386,31 @@ fun LoginScreen(
                                     focusedLabelColor = PrimaryViolet
                                 )
                             )
+                        }
+                    }
+                    
+                    // Forgot Password link (Sign In only)
+                    AnimatedVisibility(
+                        visible = authMode == AuthMode.SignIn,
+                        enter = fadeIn(animationSpec = tween(300)),
+                        exit = fadeOut(animationSpec = tween(200))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp),
+                            contentAlignment = Alignment.CenterEnd
+                        ) {
+                            TextButton(
+                                onClick = onForgotPassword
+                            ) {
+                                Text(
+                                    text = "Forgot Password?",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = PrimaryViolet,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     }
                     

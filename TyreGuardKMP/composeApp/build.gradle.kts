@@ -26,6 +26,9 @@ val webClientId = envProperties.getProperty("WEB_CLIENT_ID")
 val meshyApiKey = envProperties.getProperty("MESHY_API_KEY")
     ?.replace("\"", "")
     ?.trim() ?: ""
+val mapsApiKey = envProperties.getProperty("MAPS_API_KEY")
+    ?.replace("\"", "")
+    ?.trim() ?: ""
 
 kotlin {
     androidTarget {
@@ -136,6 +139,33 @@ kotlin {
             
             // Kotlinx Serialization for JSON handling
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+            
+            // ═══════════════════════════════════════════════════════════════
+            // Lottie Compose - High-quality animations for onboarding
+            // ═══════════════════════════════════════════════════════════════
+            implementation("com.airbnb.android:lottie-compose:6.4.0")
+            
+            // ═══════════════════════════════════════════════════════════════
+            // ConstraintLayout Compose - For MotionLayout-like transitions
+            // ═══════════════════════════════════════════════════════════════
+            implementation("androidx.constraintlayout:constraintlayout-compose:1.1.0")
+            
+            // ═══════════════════════════════════════════════════════════════
+            // Accompanist Permissions - Easy runtime permission handling
+            // ═══════════════════════════════════════════════════════════════
+            implementation("com.google.accompanist:accompanist-permissions:0.34.0")
+            
+            // ═══════════════════════════════════════════════════════════════
+            // Google Maps SDK for Android - Map display and interaction
+            // ═══════════════════════════════════════════════════════════════
+            implementation("com.google.maps.android:maps-compose:4.3.3")
+            implementation("com.google.android.gms:play-services-maps:19.0.0")
+            implementation("com.google.android.gms:play-services-location:21.2.0")
+            
+            // ═══════════════════════════════════════════════════════════════
+            // Places SDK for Android - Search nearby service centers
+            // ═══════════════════════════════════════════════════════════════
+            implementation("com.google.android.libraries.places:places:4.1.0")
         }
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -176,10 +206,14 @@ android {
         
         // ═══════════════════════════════════════════════════════════════════
         // Inject environment variables from .env file into BuildConfig
-        // Access via: BuildConfig.WEB_CLIENT_ID, BuildConfig.MESHY_API_KEY
+        // Access via: BuildConfig.WEB_CLIENT_ID, BuildConfig.MESHY_API_KEY, BuildConfig.MAPS_API_KEY
         // ═══════════════════════════════════════════════════════════════════
         buildConfigField("String", "WEB_CLIENT_ID", "\"$webClientId\"")
         buildConfigField("String", "MESHY_API_KEY", "\"$meshyApiKey\"")
+        buildConfigField("String", "MAPS_API_KEY", "\"$mapsApiKey\"")
+        
+        // Manifest placeholders for API keys
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
     }
     
     // Enable BuildConfig generation

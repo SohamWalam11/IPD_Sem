@@ -86,7 +86,8 @@ sealed class BiometricState {
 fun AndroidLoginScreen(
     modifier: Modifier = Modifier,
     onLoginSuccess: () -> Unit,
-    onSkipToSetup: () -> Unit = onLoginSuccess
+    onSkipToSetup: () -> Unit = onLoginSuccess,
+    onForgotPassword: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val activity = context as? FragmentActivity
@@ -563,6 +564,29 @@ fun AndroidLoginScreen(
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold
                         )
+                    }
+                    
+                    // Forgot Password link (Sign In only)
+                    AnimatedVisibility(
+                        visible = authMode == AuthMode.SignIn,
+                        enter = fadeIn(animationSpec = tween(300)),
+                        exit = fadeOut(animationSpec = tween(200))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp),
+                            contentAlignment = Alignment.CenterEnd
+                        ) {
+                            TextButton(onClick = onForgotPassword) {
+                                Text(
+                                    text = "Forgot Password?",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = TyrePurple,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
                     }
                     
                     Spacer(modifier = Modifier.height(16.dp))

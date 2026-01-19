@@ -16,10 +16,13 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
  * Login -> Onboarding -> Setup -> Dashboard -> Profile/Camera/Analysis/TyreDetail
  * 
  * 3D Viewer flow: Camera (capture 2D image) -> TyreView3D (convert to 3D and display)
+ * Defect Analysis flow: TyreDetail -> TyreDefectAnalysis (3D/AR defect visualization)
  */
 sealed class AppScreen {
     object Login : AppScreen()
+    object ForgotPassword : AppScreen()
     object Onboarding : AppScreen()
+    object Permissions : AppScreen()  // Request camera & location permissions
     object Setup : AppScreen()
     object Dashboard : AppScreen()
     object Profile : AppScreen()
@@ -27,10 +30,17 @@ sealed class AppScreen {
     object Analysis : AppScreen()
     object Notifications : AppScreen()
     object Settings : AppScreen()
+    object ServiceCenter : AppScreen()  // Nearby service centers with Google Maps
     data class TyreDetail(val tireStatus: TireStatus) : AppScreen()
     
     // 3D Viewer screen - takes image path from Camera, converts to 3D
     data class TyreView3D(val imagePath: String? = null, val modelPath: String? = null) : AppScreen()
+    
+    // 3D/AR Defect Analysis - shows tyre with highlighted defects (SceneView/ArSceneView)
+    data class TyreDefectAnalysis(
+        val tireStatus: TireStatus,
+        val startInArMode: Boolean = false
+    ) : AppScreen()
 }
 
 @Composable
@@ -54,12 +64,24 @@ fun App() {
                     onLoginSuccess = {
                         // After login, show onboarding
                         currentScreen = AppScreen.Onboarding
+                    },
+                    onForgotPassword = {
+                        currentScreen = AppScreen.ForgotPassword
+                    }
+                )
+            }
+            
+            is AppScreen.ForgotPassword -> {
+                ForgotPasswordScreen(
+                    onBackToLogin = {
+                        currentScreen = AppScreen.Login
                     }
                 )
             }
             
             is AppScreen.Onboarding -> {
-                OnboardingScreen(
+                // Use platform-specific onboarding (Android has Lottie animations)
+                PlatformOnboardingScreen(
                     onFinishOnboarding = {
                         // After onboarding, show setup flow
                         currentScreen = AppScreen.Setup
@@ -70,7 +92,21 @@ fun App() {
             is AppScreen.Setup -> {
                 SetupFlow(
                     onFinishedSetup = {
-                        // After setup, navigate to dashboard
+                        // After setup, request permissions then go to dashboard
+                        currentScreen = AppScreen.Permissions
+                    }
+                )
+            }
+            
+            is AppScreen.Permissions -> {
+                // Platform-specific permission screen
+                // On Android, shows camera/location permission requests
+                // On iOS, this is handled by the platform
+                PermissionScreenPlaceholder(
+                    onPermissionsGranted = {
+                        currentScreen = AppScreen.Dashboard
+                    },
+                    onSkip = {
                         currentScreen = AppScreen.Dashboard
                     }
                 )
@@ -92,6 +128,21 @@ fun App() {
                     },
                     onServiceCenterClick = { center ->
                         // TODO: handle service center click
+                    },
+                    onAnalysisClick = {
+                        currentScreen = AppScreen.Analysis
+                    },
+                    onFindServiceCenter = {
+                        currentScreen = AppScreen.ServiceCenter
+                    }
+                )
+            }
+            
+            is AppScreen.ServiceCenter -> {
+                // Platform-specific service center screen with Google Maps
+                ServiceCenterScreenPlaceholder(
+                    onBackClick = {
+                        currentScreen = AppScreen.Dashboard
                     }
                 )
             }
@@ -159,6 +210,18 @@ fun App() {
                     onScheduleService = {
                         // TODO: Navigate to service scheduling
                         currentScreen = AppScreen.Dashboard
+                    },
+                    onView3D = {
+                        currentScreen = AppScreen.TyreDefectAnalysis(
+                            tireStatus = screen.tireStatus,
+                            startInArMode = false
+                        )
+                    },
+                    onViewAR = {
+                        currentScreen = AppScreen.TyreDefectAnalysis(
+                            tireStatus = screen.tireStatus,
+                            startInArMode = true
+                        )
                     }
                 )
             }
@@ -190,6 +253,17 @@ fun App() {
                     },
                     onCaptureAnother = {
                         currentScreen = AppScreen.Camera
+                    }
+                )
+            }
+            
+            // 3D/AR Defect Analysis - shows tyre with highlighted defects using SceneView/ArSceneView
+            is AppScreen.TyreDefectAnalysis -> {
+                TyreDefectAnalysisPlaceholder(
+                    tireStatus = screen.tireStatus,
+                    startInArMode = screen.startInArMode,
+                    onBackClick = {
+                        currentScreen = AppScreen.TyreDetail(screen.tireStatus)
                     }
                 )
             }
@@ -244,4 +318,30 @@ expect fun Tyre3DViewerScreenPlaceholder(
     modelPath: String?,
     onBackClick: () -> Unit,
     onCaptureAnother: () -> Unit
+)
+
+/**
+ * Placeholder for Service Center screen with Google Maps
+ * Android: Uses Maps SDK, Places SDK for nearby tyre service centers
+ * iOS: Uses MapKit (to be implemented)
+ */
+@Composable
+expect fun ServiceCenterScreenPlaceholder(
+    onBackClick: () -> Unit
+)
+
+/**
+ * Placeholder for 3D/AR Tyre Defect Analysis screen
+ * Uses SceneView for 3D rendering and ArSceneView for AR overlay
+ * Shows tyre model with highlighted defect areas
+ * 
+ * @param tireStatus The tire data including defects
+ * @param startInArMode Whether to start in AR mode instead of 3D
+ * @param onBackClick Callback when back button pressed
+ */
+@Composable
+expect fun TyreDefectAnalysisPlaceholder(
+    tireStatus: TireStatus,
+    startInArMode: Boolean,
+    onBackClick: () -> Unit
 )

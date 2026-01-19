@@ -191,13 +191,27 @@ class ImageTo3DService(
     }
     
     /**
-     * Reads image bytes from a content URI
+     * Reads image bytes from a file path or content URI
      */
     private fun readImageBytes(imageUri: String): ByteArray {
-        val uri = Uri.parse(imageUri)
-        return context.contentResolver.openInputStream(uri)?.use { 
-            it.readBytes() 
-        } ?: throw Exception("Cannot read image from $imageUri")
+        return try {
+            // Try as file path first
+            val file = File(imageUri)
+            if (file.exists()) {
+                Log.d(TAG, "Reading image from file: $imageUri")
+                file.readBytes()
+            } else {
+                // Try as content URI
+                val uri = Uri.parse(imageUri)
+                Log.d(TAG, "Reading image from URI: $uri")
+                context.contentResolver.openInputStream(uri)?.use { 
+                    it.readBytes() 
+                } ?: throw Exception("Cannot open input stream for $imageUri")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to read image: ${e.message}", e)
+            throw Exception("Cannot read image: ${e.message}")
+        }
     }
     
     /**

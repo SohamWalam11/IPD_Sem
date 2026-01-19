@@ -12,6 +12,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Rotate90DegreesCcw
+import androidx.compose.material.icons.filled.ViewInAr
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.*
@@ -45,6 +47,7 @@ private val CardSurface = Color(0xFF1E1E1E)
 private val SurfaceLight = Color(0xFF2A2A2A)
 private val TextPrimary = Color(0xFFFFFFFF)
 private val TextSecondary = Color(0xFFB0B0B0)
+private val PrimaryViolet = Color(0xFF7C3AED)
 
 /**
  * Premium Tyre Detail Screen with "Digital Twin" UX
@@ -53,13 +56,16 @@ private val TextSecondary = Color(0xFFB0B0B0)
  * - Liquid wave animation for tread depth
  * - Sparkline graphs for metrics context
  * - Smart action cards for AI insights
+ * - 3D/AR Analysis viewer for defect visualization
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TyreDetailScreen(
     tireStatus: TireStatus,
     onBack: () -> Unit = {},
-    onScheduleService: () -> Unit = {}
+    onScheduleService: () -> Unit = {},
+    onView3D: (() -> Unit)? = null,
+    onViewAR: (() -> Unit)? = null
 ) {
     val isGood = !tireStatus.isCritical && tireStatus.treadHealth != TreadHealth.WORN
     val healthColor = if (isGood) GoodGreen else AlertOrange
@@ -219,6 +225,120 @@ fun TyreDetailScreen(
                 )
 
                 Spacer(modifier = Modifier.height(if (isCompactScreen) 16.dp else 20.dp))
+                
+                // 3D/AR ANALYSIS BUTTONS
+                if (onView3D != null || onViewAR != null) {
+                    Text(
+                        "3D Analysis", 
+                        color = TextSecondary, 
+                        fontSize = if (isCompactScreen) 12.sp else 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(if (isCompactScreen) 8.dp else 12.dp)
+                    ) {
+                        // View in 3D Button
+                        if (onView3D != null) {
+                            Card(
+                                onClick = onView3D,
+                                modifier = Modifier.weight(1f),
+                                colors = CardDefaults.cardColors(containerColor = CardSurface),
+                                shape = RoundedCornerShape(16.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(if (isCompactScreen) 12.dp else 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(if (isCompactScreen) 36.dp else 44.dp)
+                                            .background(
+                                                PrimaryViolet.copy(alpha = 0.15f),
+                                                CircleShape
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Rotate90DegreesCcw,
+                                            contentDescription = null,
+                                            tint = PrimaryViolet,
+                                            modifier = Modifier.size(if (isCompactScreen) 20.dp else 24.dp)
+                                        )
+                                    }
+                                    Column {
+                                        Text(
+                                            "View in 3D",
+                                            color = TextPrimary,
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = if (isCompactScreen) 13.sp else 15.sp
+                                        )
+                                        Text(
+                                            "Inspect defects",
+                                            color = TextSecondary,
+                                            fontSize = if (isCompactScreen) 10.sp else 12.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // View in AR Button
+                        if (onViewAR != null) {
+                            Card(
+                                onClick = onViewAR,
+                                modifier = Modifier.weight(1f),
+                                colors = CardDefaults.cardColors(containerColor = CardSurface),
+                                shape = RoundedCornerShape(16.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(if (isCompactScreen) 12.dp else 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(if (isCompactScreen) 36.dp else 44.dp)
+                                            .background(
+                                                AlertOrange.copy(alpha = 0.15f),
+                                                CircleShape
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            Icons.Default.ViewInAr,
+                                            contentDescription = null,
+                                            tint = AlertOrange,
+                                            modifier = Modifier.size(if (isCompactScreen) 20.dp else 24.dp)
+                                        )
+                                    }
+                                    Column {
+                                        Text(
+                                            "View in AR",
+                                            color = TextPrimary,
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = if (isCompactScreen) 13.sp else 15.sp
+                                        )
+                                        Text(
+                                            "Real-world overlay",
+                                            color = TextSecondary,
+                                            fontSize = if (isCompactScreen) 10.sp else 12.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(if (isCompactScreen) 16.dp else 20.dp))
+                }
 
                 // 4. AI RECOMMENDATIONS / SMART ACTION CARDS
                 Text(
