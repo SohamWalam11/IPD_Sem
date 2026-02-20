@@ -31,6 +31,8 @@ sealed class AppScreen {
     object Notifications : AppScreen()
     object Settings : AppScreen()
     object ServiceCenter : AppScreen()  // Nearby service centers with Google Maps
+    object TpmsMonitor : AppScreen()  // BLE TPMS sensor monitoring screen
+    object AnylineTreadScan : AppScreen()  // Anyline TireTread SDK scan screen
     data class TyreDetail(val tireStatus: TireStatus) : AppScreen()
     
     // 3D Viewer screen - takes image path from Camera, converts to 3D
@@ -134,6 +136,12 @@ fun App() {
                     },
                     onFindServiceCenter = {
                         currentScreen = AppScreen.ServiceCenter
+                    },
+                    onTpmsClick = {
+                        currentScreen = AppScreen.TpmsMonitor
+                    },
+                    onTreadScanClick = {
+                        currentScreen = AppScreen.AnylineTreadScan
                     }
                 )
             }
@@ -145,6 +153,16 @@ fun App() {
                         currentScreen = AppScreen.Dashboard
                     }
                 )
+            }
+
+            is AppScreen.TpmsMonitor -> {
+                // TPMS screen is Android-only (BLE). On common/iOS, go back to Dashboard.
+                currentScreen = AppScreen.Dashboard
+            }
+
+            is AppScreen.AnylineTreadScan -> {
+                // Anyline TireTread SDK is Android-only. On iOS/common, redirect to Dashboard.
+                currentScreen = AppScreen.Dashboard
             }
             
             is AppScreen.Profile -> {

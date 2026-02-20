@@ -25,6 +25,8 @@ dependencyResolutionManagement {
             }
         }
         mavenCentral()
+        // Anyline TireTread SDK
+        maven("https://europe-maven.pkg.dev/anyline-ttr-sdk/maven")
     }
 }
 

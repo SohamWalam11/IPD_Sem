@@ -20,6 +20,8 @@ import org.example.project.analysis.TireStatus
 import org.example.project.analysis.TreadHealth
 import org.example.project.analysis.TyreDetailScreen
 import org.example.project.auth.SupabaseAuthService
+import org.example.project.ble.TpmsBluetoothManager
+import org.example.project.ble.TyreWheelPosition
 import org.example.project.data.UserDataRepository
 import org.example.project.data.local.CachedUserData
 import org.example.project.data.local.UserPreferencesManager
@@ -184,8 +186,40 @@ fun AndroidApp() {
                     ?: authUser?.displayName
                     ?: "User"
                 
+                // Collect live BLE TPMS data for dynamic dashboard
+                val tpmsManager = remember { TpmsBluetoothManager.getInstance(context) }
+                val tpmsState by tpmsManager.state.collectAsState()
+                val positionData = tpmsState.getAllPositionData()
+                
+                // Convert BLE data to TyreData for the dashboard
+                val liveTyreData: List<TyreData>? = if (positionData.isNotEmpty()) {
+                    positionData.map { (position, sensorData) ->
+                        val id = when (position) {
+                            TyreWheelPosition.FRONT_LEFT -> "FL"
+                            TyreWheelPosition.FRONT_RIGHT -> "FR"
+                            TyreWheelPosition.REAR_LEFT -> "RL"
+                            TyreWheelPosition.REAR_RIGHT -> "RR"
+                            else -> "FL"
+                        }
+                        val name = position.label
+                        val status = when {
+                            sensorData.pressurePsi < 26f || sensorData.isRapidLeak -> TyreStatus.CRITICAL
+                            sensorData.pressurePsi < 30f || sensorData.hasAlarm -> TyreStatus.WARNING
+                            else -> TyreStatus.GOOD
+                        }
+                        TyreData(
+                            id = id,
+                            name = name,
+                            psi = sensorData.pressurePsi,
+                            temp = sensorData.temperatureCelsius.toInt(),
+                            status = status
+                        )
+                    }
+                } else null
+                
                 DashboardScreen(
                     userName = displayUserName,
+                    liveTyreData = liveTyreData,
                     onCameraClick = {
                         currentScreen = AppScreen.Camera
                     },
@@ -205,6 +239,12 @@ fun AndroidApp() {
                     },
                     onFindServiceCenter = {
                         currentScreen = AppScreen.ServiceCenter
+                    },
+                    onTpmsClick = {
+                        currentScreen = AppScreen.TpmsMonitor
+                    },
+                    onTreadScanClick = {
+                        currentScreen = AppScreen.AnylineTreadScan
                     }
                 )
             }
@@ -325,6 +365,22 @@ fun AndroidApp() {
                 )
             }
             
+            is AppScreen.TpmsMonitor -> {
+                org.example.project.ble.TpmsScreen(
+                    onBackClick = {
+                        currentScreen = AppScreen.Dashboard
+                    }
+                )
+            }
+
+            is AppScreen.AnylineTreadScan -> {
+                org.example.project.ml.AnylineTreadScanScreen(
+                    onBack = {
+                        currentScreen = AppScreen.Dashboard
+                    }
+                )
+            }
+
             // 3D/AR Defect Analysis Screen - SceneView/ArSceneView
             is AppScreen.TyreDefectAnalysis -> {
                 TyreDefectAnalysisPlaceholder(

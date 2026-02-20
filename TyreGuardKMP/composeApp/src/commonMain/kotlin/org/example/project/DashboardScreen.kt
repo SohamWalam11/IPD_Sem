@@ -100,7 +100,7 @@ data class AnalysisReport(
     val score: Int
 )
 
-// Sample Data
+// Fallback sample data (used only when no BLE sensor connected)
 private val sampleTyres = listOf(
     TyreData("FL", "Front Left", 32.5f, 28, TyreStatus.GOOD),
     TyreData("FR", "Front Right", 32.0f, 29, TyreStatus.GOOD),
@@ -125,21 +125,28 @@ private val sampleReports = listOf(
 fun DashboardScreen(
     userName: String = "Soham",
     modifier: Modifier = Modifier,
+    liveTyreData: List<TyreData>? = null,  // Dynamic BLE data — null = use fallback
     onCameraClick: () -> Unit = {},
     onTyreClick: (TyreData) -> Unit = {},
     onView3DClick: () -> Unit = {},
     onServiceCenterClick: (ServiceCenter) -> Unit = {},
     onAnalysisClick: () -> Unit = {},
-    onFindServiceCenter: () -> Unit = {}  // Navigate to Google Maps service finder
+    onFindServiceCenter: () -> Unit = {},
+    onTpmsClick: () -> Unit = {},
+    onTreadScanClick: () -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
+    
+    // Use live BLE data when available, otherwise fall back to static sample
+    val activeTyres = liveTyreData ?: sampleTyres
+    val isLive = liveTyreData != null
     
     // State for selected tyre detail (MotionLayout-style detail view)
     var selectedTyreForDetail by remember { mutableStateOf<TyrePressureData?>(null) }
     
-    // Convert sample tyres to TyrePressureData for the overview component
-    val tyrePressureDataList = remember {
-        sampleTyres.map { tyre ->
+    // Convert active tyres to TyrePressureData for the overview component
+    val tyrePressureDataList = remember(activeTyres) {
+        activeTyres.map { tyre ->
             TyrePressureData(
                 position = when (tyre.id) {
                     "FL" -> TyrePosition.FRONT_LEFT
@@ -161,15 +168,18 @@ fun DashboardScreen(
         }
     }
     
-    // Calculate overall health score
-    val healthScore = remember {
-        val goodCount = sampleTyres.count { it.status == TyreStatus.GOOD }
-        val warningCount = sampleTyres.count { it.status == TyreStatus.WARNING }
-        val criticalCount = sampleTyres.count { it.status == TyreStatus.CRITICAL }
-        ((goodCount * 100 + warningCount * 60 + criticalCount * 20) / sampleTyres.size)
+    // Calculate overall health score dynamically
+    val healthScore = remember(activeTyres) {
+        if (activeTyres.isEmpty()) 0
+        else {
+            val goodCount = activeTyres.count { it.status == TyreStatus.GOOD }
+            val warningCount = activeTyres.count { it.status == TyreStatus.WARNING }
+            val criticalCount = activeTyres.count { it.status == TyreStatus.CRITICAL }
+            ((goodCount * 100 + warningCount * 60 + criticalCount * 20) / activeTyres.size)
+        }
     }
     
-    val issueCount = sampleTyres.count { it.status != TyreStatus.GOOD }
+    val issueCount = activeTyres.count { it.status != TyreStatus.GOOD }
 
     Box(modifier = modifier.fillMaxSize()) {
         Scaffold(
@@ -209,8 +219,8 @@ fun DashboardScreen(
                         Spacer(modifier = Modifier.height(16.dp))
                         TyrePressureOverviewCard(
                             tyreData = tyrePressureDataList,
-                            carBodyType = CarBodyType.SUV, // TODO: Get from user profile
-                            lastReading = "14:15",
+                            carBodyType = CarBodyType.SUV,
+                            lastReading = if (isLive) "Live" else "14:15",
                             onTyreClick = { tyre ->
                                 selectedTyreForDetail = tyre
                             }
@@ -220,10 +230,21 @@ fun DashboardScreen(
                     // 3. Tyre Overview Carousel
                     item { 
                         TyreOverviewSection(
-                            tyres = sampleTyres,
+                            tyres = activeTyres,
                             onTyreClick = onTyreClick,
                             onView3DClick = onView3DClick
                         ) 
+                    }
+
+                    // 3.5. TPMS Sensor Card
+                    item {
+                        TpmsSensorQuickCard(onTpmsClick = onTpmsClick, isLive = isLive)
+                    }
+
+                    // 3.6. Anyline Tread Depth Scan Card
+                    item {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        AnylineTreadScanCard(onTreadScanClick = onTreadScanClick)
                     }
 
                     // 4. Latest Analysis Section
@@ -1191,6 +1212,161 @@ private fun StaggeredServiceCenterCard(
                     }
                 }
             }
+        }
+    }
+}
+
+// ============ TPMS SENSOR QUICK CARD ============
+
+@Composable
+private fun TpmsSensorQuickCard(onTpmsClick: () -> Unit = {}, isLive: Boolean = false) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .clickable { onTpmsClick() },
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF1A1A2E)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // BLE Icon
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(
+                        Brush.linearGradient(
+                            colors = if (isLive) listOf(Color(0xFF2E7D32), Color(0xFF1B5E20))
+                            else listOf(PrimaryViolet, DeepViolet)
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    if (isLive) Icons.Default.BluetoothConnected else Icons.Default.Bluetooth,
+                    contentDescription = "TPMS",
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "TPMS Sensors",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                    if (isLive) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .background(Color(0xFF4CAF50), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Text("LIVE", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+                        }
+                    }
+                }
+                Text(
+                    text = if (isLive) "Receiving live pressure data" else "Tap to connect BLE sensors",
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 13.sp
+                )
+            }
+
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.5f),
+                modifier = Modifier.size(24.dp)
+            )
+        }
+    }
+}
+
+// ============ ANYLINE TREAD SCAN QUICK CARD ============
+
+@Composable
+private fun AnylineTreadScanCard(onTreadScanClick: () -> Unit = {}) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .clickable { onTreadScanClick() },
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF1A1A2E)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Icon
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(Color(0xFFE53935), Color(0xFFB71C1C))
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Scanner,
+                    contentDescription = "Tread Scan",
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Tread Depth Scanner",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .background(Color(0xFFE53935), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text("AI", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+                    }
+                }
+                Text(
+                    text = "Measure tyre tread via Anyline SDK",
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 13.sp
+                )
+            }
+
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.5f),
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }

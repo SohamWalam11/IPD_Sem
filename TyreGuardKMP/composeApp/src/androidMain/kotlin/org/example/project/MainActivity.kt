@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import org.example.project.auth.SupabaseAuthService
+import org.example.project.ble.service.TpmsForegroundService
 import org.example.project.data.AuthStorage
 
 class MainActivity : ComponentActivity() {
@@ -19,6 +20,13 @@ class MainActivity : ComponentActivity() {
         
         // Restore any existing session
         SupabaseAuthService.restoreSession()
+
+        // Start background service for widget updates
+        try {
+            TpmsForegroundService.start(this)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
 
         setContent {
             AndroidApp()

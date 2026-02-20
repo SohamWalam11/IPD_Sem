@@ -55,6 +55,11 @@ fun PermissionRequestScreen(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             add(Manifest.permission.POST_NOTIFICATIONS)
         }
+        // BLE permissions for TPMS sensor connectivity
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            add(Manifest.permission.BLUETOOTH_SCAN)
+            add(Manifest.permission.BLUETOOTH_CONNECT)
+        }
     }
     
     val permissionsState = rememberMultiplePermissionsState(
@@ -84,6 +89,13 @@ fun PermissionRequestScreen(
             title = "Location Access",
             description = "Find nearby service centers and track your driving routes for tyre analysis",
             permission = Manifest.permission.ACCESS_FINE_LOCATION
+        ),
+        PermissionItem(
+            icon = Icons.Default.Bluetooth,
+            title = "Bluetooth Access",
+            description = "Connect to JK Tyre Treel TPMS sensors for real-time tyre pressure monitoring",
+            permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+                Manifest.permission.BLUETOOTH_SCAN else Manifest.permission.ACCESS_FINE_LOCATION
         )
     )
     

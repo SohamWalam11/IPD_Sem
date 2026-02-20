@@ -1,64 +1,81 @@
-#include "HX711.h"
+#include <BLEDevice.h>
+#include <BLEUtils.h>
+#include <BLEScan.h>
+#include <BLEAdvertisedDevice.h>
 
-// ---------------------------------------------------------------------
-// CONFIGURATION
-// ---------------------------------------------------------------------
-// Pin definitions (Matches the wiring instructions I gave you)
-const int LOADCELL_DOUT_PIN = 21;
-const int LOADCELL_SCK_PIN = 22;
+// Set this to true if you want to see ALL devices to find yours first
+bool SHOW_ALL_DEVICES = true; 
 
-// Initialize the library
-HX711 scale;
+// Likely name of your sensor
+String TARGET_NAME = "Treel"; 
+
+int scanTime = 5; // seconds
+
+class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
+    void onResult(BLEAdvertisedDevice advertisedDevice) {
+
+      String deviceName = advertisedDevice.getName();
+
+      // Filter device
+      if (SHOW_ALL_DEVICES || deviceName.indexOf(TARGET_NAME) >= 0) {
+
+        Serial.print("Device Found: ");
+        Serial.println(deviceName);
+
+        Serial.print("Address: ");
+        Serial.println(advertisedDevice.getAddress().toString().c_str());
+
+        // -------- Manufacturer Data --------
+        if (advertisedDevice.haveManufacturerData()) {
+
+          // FIX: use Arduino String
+          String mfgData = advertisedDevice.getManufacturerData();
+
+          Serial.print("RAW HEX (Manufacturer Data): ");
+
+          for (int i = 0; i < mfgData.length(); i++) {
+            Serial.printf("%02X ", (uint8_t)mfgData[i]);
+          }
+          Serial.println();
+        }
+
+        // -------- Service Data --------
+        if (advertisedDevice.haveServiceData()) {
+
+          int serviceCount = advertisedDevice.getServiceDataCount();
+          for (int i = 0; i < serviceCount; i++) {
+
+            // FIX: use Arduino String
+            String serviceData = advertisedDevice.getServiceData(i);
+
+            Serial.print("RAW HEX (Service Data): ");
+            for (int j = 0; j < serviceData.length(); j++) {
+              Serial.printf("%02X ", (uint8_t)serviceData[j]);
+            }
+            Serial.println();
+          }
+        }
+
+        Serial.println("------------------------------------------------");
+      }
+    }
+};
 
 void setup() {
-  // Start Serial Monitor at 115200 baud
   Serial.begin(115200);
-  Serial.println("\n-------------------------------------");
-  Serial.println("TyreGuard AI: Hardware Test Initialization");
-  Serial.println("-------------------------------------");
+  Serial.println("Starting BLE Scanner...");
 
-  // Initialize the scale
-  scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
-
-  // 1. Wait for the sensor to become ready
-  Serial.print("Connecting to HX711...");
-  // Timeout usually indicates bad wiring
-  unsigned long startTime = millis();
-  while (!scale.is_ready()) {
-    if (millis() - startTime > 2000) {
-      Serial.println("\n[ERROR] HX711 not found.");
-      Serial.println(" - Check your VCC/GND wires.");
-      Serial.println(" - Check if DT is in Pin 21 and SCK in Pin 22.");
-      while(1); // Stop here if hardware fails
-    }
-    delay(10);
-  }
-  Serial.println(" [CONNECTED]");
-
-  // 2. Tare the scale (Reset to 0)
-  // This assumes no weight is on the sensor when you turn it on.
-  Serial.println("Tareing (Zeroing) the scale...");
-  scale.set_scale(); // Set scale to default 1
-  scale.tare();      // Reset the scale to 0
-  
-  Serial.println("Setup Complete. Reading data...");
+  BLEDevice::init("");
+  BLEScan* pBLEScan = BLEDevice::getScan();
+  pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
+  pBLEScan->setActiveScan(true);
+  pBLEScan->setInterval(100);
+  pBLEScan->setWindow(99);
 }
 
 void loop() {
-  // Check if the scale is ready to provide data
-  if (scale.is_ready()) {
-    // Read the raw value (long integer)
-    long reading = scale.get_units(5); // Average of 5 readings
-    
-    Serial.print("Raw Weight Value: ");
-    Serial.println(reading);
-    
-    // In the future, we will convert 'reading' to Kilograms/PSI 
-    // using a calibration factor.
-  } else {
-    Serial.println("HX711 not ready...");
-  }
-
-  // Slow down the loop slightly
-  delay(250);
+  BLEScan* pBLEScan = BLEDevice::getScan();
+  pBLEScan->start(scanTime, false);
+  pBLEScan->clearResults();
+  delay(2000);
 }

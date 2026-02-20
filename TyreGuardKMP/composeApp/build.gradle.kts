@@ -11,6 +11,8 @@ plugins {
     id("com.google.devtools.ksp") version "2.1.0-1.0.29"
 }
 
+val ktorVersion = "2.3.10"
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Load environment variables from .env file
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -23,10 +25,16 @@ if (envFile.exists()) {
 val webClientId = envProperties.getProperty("WEB_CLIENT_ID")
     ?.replace("\"", "")
     ?.trim() ?: ""
-val meshyApiKey = envProperties.getProperty("MESHY_API_KEY")
+val tripoApiKey = envProperties.getProperty("TRIPO3D_API_KEY")
     ?.replace("\"", "")
     ?.trim() ?: ""
 val mapsApiKey = envProperties.getProperty("MAPS_API_KEY")
+    ?.replace("\"", "")
+    ?.trim() ?: ""
+val anylineApiKey = envProperties.getProperty("ANYLINE_LICENSE_KEY")
+    ?.replace("\"", "")
+    ?.trim() ?: ""
+val michelinApiKey = envProperties.getProperty("MICHELIN_API_KEY")
     ?.replace("\"", "")
     ?.trim() ?: ""
 
@@ -72,6 +80,10 @@ kotlin {
             implementation("org.tensorflow:tensorflow-lite:2.14.0")
             implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
             implementation("org.tensorflow:tensorflow-lite-gpu:2.14.0")
+            // Task Vision API: Modern ObjectDetector + TensorImage (NO manual ByteBuffers)
+            implementation("org.tensorflow:tensorflow-lite-task-vision:0.4.4") {
+                exclude(group = "org.tensorflow", module = "tensorflow-lite")
+            }
             
             // ═══════════════════════════════════════════════════════════════
             // Room Database - Local storage for tyre images and metadata
@@ -87,9 +99,9 @@ kotlin {
             // ═══════════════════════════════════════════════════════════════
             // Ktor HTTP Client - For cloud-based 3D reconstruction APIs
             // ═══════════════════════════════════════════════════════════════
-            implementation("io.ktor:ktor-client-okhttp:3.0.3")
-            implementation("io.ktor:ktor-client-content-negotiation:3.0.3")
-            implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.3")
+            implementation("io.ktor:ktor-client-okhttp:$ktorVersion")
+            implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
+            implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
             
             // ═══════════════════════════════════════════════════════════════
             // SceneView - Modern 3D rendering library (Sceneform successor)
@@ -141,6 +153,13 @@ kotlin {
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
             
             // ═══════════════════════════════════════════════════════════════
+            // Jetpack Glance - Modern Android App Widgets with Compose
+            // "The Samsung Style" Home Screen Widget
+            // ═══════════════════════════════════════════════════════════════
+            implementation("androidx.glance:glance-appwidget:1.1.0")
+            implementation("androidx.glance:glance-material3:1.1.0")
+
+            // ═══════════════════════════════════════════════════════════════
             // Lottie Compose - High-quality animations for onboarding
             // ═══════════════════════════════════════════════════════════════
             implementation("com.airbnb.android:lottie-compose:6.4.0")
@@ -166,6 +185,13 @@ kotlin {
             // Places SDK for Android - Search nearby service centers
             // ═══════════════════════════════════════════════════════════════
             implementation("com.google.android.libraries.places:places:4.1.0")
+
+            // ═══════════════════════════════════════════════════════════════
+            // Anyline TireTread SDK - Professional tyre tread depth scanning
+            // Maven: https://europe-maven.pkg.dev/anyline-ttr-sdk/maven
+            // Requires ANYLINE_LICENSE_KEY in local.properties / .env
+            // ═══════════════════════════════════════════════════════════════
+            implementation("io.anyline.tiretread.sdk:shared:14.0.0")
         }
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -182,7 +208,7 @@ kotlin {
             implementation("io.github.jan-tennert.supabase:postgrest-kt:3.1.4")
             implementation("io.github.jan-tennert.supabase:auth-kt:3.1.4")
             implementation("io.github.jan-tennert.supabase:compose-auth:3.1.4")
-            implementation("io.ktor:ktor-client-core:3.0.3")
+            implementation("io.ktor:ktor-client-core:$ktorVersion")
             
             // Kotlinx coroutines
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
@@ -206,12 +232,14 @@ android {
         
         // ═══════════════════════════════════════════════════════════════════
         // Inject environment variables from .env file into BuildConfig
-        // Access via: BuildConfig.WEB_CLIENT_ID, BuildConfig.MESHY_API_KEY, BuildConfig.MAPS_API_KEY
+        // Access via: BuildConfig.WEB_CLIENT_ID, BuildConfig.TRIPO3D_API_KEY, BuildConfig.MAPS_API_KEY
         // ═══════════════════════════════════════════════════════════════════
         buildConfigField("String", "WEB_CLIENT_ID", "\"$webClientId\"")
-        buildConfigField("String", "MESHY_API_KEY", "\"$meshyApiKey\"")
+        buildConfigField("String", "TRIPO3D_API_KEY", "\"$tripoApiKey\"")
         buildConfigField("String", "MAPS_API_KEY", "\"$mapsApiKey\"")
-        
+        buildConfigField("String", "ANYLINE_LICENSE_KEY", "\"$anylineApiKey\"")
+        buildConfigField("String", "MICHELIN_API_KEY", "\"$michelinApiKey\"")
+
         // Manifest placeholders for API keys
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
     }
@@ -246,3 +274,13 @@ dependencies {
     add("kspAndroid", "androidx.room:room-compiler:2.6.1")
 }
 
+configurations.configureEach {
+    resolutionStrategy {
+        eachDependency {
+            if (requested.group == "io.ktor") {
+                useVersion(ktorVersion)
+                because("Anyline 14.0.0 depends on Ktor 2.3.10 (HttpRequestRetry class)")
+            }
+        }
+    }
+}

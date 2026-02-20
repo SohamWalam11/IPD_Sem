@@ -4,6 +4,8 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -42,21 +44,31 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
 
-// ============ PREMIUM THEME COLORS ============
-private val PrimaryViolet = Color(0xFF6200EA)
+// ============ DARK AUTOMOTIVE THEME ============
+private val PrimaryViolet = Color(0xFF7C3AED)
 private val SecondaryPurple = Color(0xFFBB86FC)
-private val DeepViolet = Color(0xFF3700B3)
-private val DarkViolet = Color(0xFF4A148C)
+private val DeepViolet = Color(0xFF5B21B6)
+private val DarkViolet = Color(0xFF4C1D95)
 private val LightLavender = Color(0xFFF3E5F5)
 private val SoftWhite = Color(0xFFFAFAFA)
 
-// Premium gradients for brand identity
+// Dark background layers
+private val DarkBg        = Color(0xFF0D0D1A)
+private val DarkSurface   = Color(0xFF161625)
+private val DarkCard      = Color(0xFF1E1E30)
+private val DarkField     = Color(0xFF252538)
+private val FieldBorder   = Color(0xFF2E2E45)
+private val TextOnDark    = Color(0xFFECECFF)
+private val SubTextOnDark = Color(0xFF8888AA)
+
+// Brand gradient (stays purple)
 private val BrandGradient = Brush.horizontalGradient(
-    colors = listOf(PrimaryViolet, DeepViolet)
+    colors = listOf(Color(0xFF7C3AED), Color(0xFF5B21B6))
 )
 
+// Legacy compat only
 private val BackgroundGradient = Brush.verticalGradient(
-    colors = listOf(LightLavender, SoftWhite, LightLavender.copy(alpha = 0.5f))
+    colors = listOf(DarkBg, DarkSurface)
 )
 
 /**
@@ -145,278 +157,193 @@ fun LoginScreen(
     val showBiometricSheet = loginState is EnhancedLoginState.BiometricSetup
     
     Box(
-        modifier = modifier.fillMaxSize()
+        modifier = modifier.fillMaxSize().background(DarkBg)
     ) {
-        // Animated Mesh Gradient Background
-        MeshGradientBackground(
-            meshOffset1 = meshOffset1,
-            meshOffset2 = meshOffset2,
-            breathingAlpha = breathingAlpha
-        )
+        // Dark animated background blobs
+        DarkMeshBackground(breathingAlpha = breathingAlpha)
         
         // Main content
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .padding(horizontal = 28.dp),
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Top section - Rolling Tyre Logo with animation
+            // ── Logo & Brand ──
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Spacer(modifier = Modifier.height(60.dp))
-                
-                // ANIMATION: Tyre rolls in from left and keeps spinning
+                Spacer(modifier = Modifier.height(56.dp))
                 AnimatedVisibility(
                     visible = startAnimation,
-                    enter = slideInHorizontally(
-                        initialOffsetX = { -it * 2 },
-                        animationSpec = tween(1000, easing = FastOutSlowInEasing)
-                    ) + fadeIn(animationSpec = tween(800))
+                    enter = slideInVertically(initialOffsetY = { -40 }, animationSpec = tween(800)) + fadeIn(tween(800))
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        RollingTyreAnimation(
-                            modifier = Modifier.size(100.dp)
-                        )
-                        
+                        RollingTyreAnimation(modifier = Modifier.size(88.dp))
                         Spacer(modifier = Modifier.height(16.dp))
-                        
                         Text(
                             text = "TyreGuard",
-                            style = MaterialTheme.typography.headlineLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = DarkViolet
-                            )
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = TextOnDark,
+                            letterSpacing = 0.5.sp
                         )
-                        
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Your personal pit crew",
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                color = Color.Gray
-                            )
+                            text = if (authMode == AuthMode.SignIn) "Welcome back" else "Start your journey",
+                            fontSize = 15.sp,
+                            color = SubTextOnDark
                         )
                     }
                 }
             }
-            
-            // Middle section - Auth form
+
+            // ── Auth Form ──
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .padding(vertical = 24.dp),
-                verticalArrangement = Arrangement.Center,
+                    .padding(top = 32.dp),
+                verticalArrangement = Arrangement.Top,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Premium Pill-Style Auth Mode Toggle
-                PillAuthModeToggle(
+                // Dark pill toggle
+                DarkAuthToggle(
                     currentMode = authMode,
-                    onModeChange = { 
+                    onModeChange = {
                         authMode = it
                         generalError = null
                         emailError = null
                         passwordError = null
                     }
                 )
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
+
+                Spacer(modifier = Modifier.height(28.dp))
+
                 // Error banner
                 AnimatedVisibility(
-                    visible = generalError != null || (loginState is EnhancedLoginState.Error),
+                    visible = generalError != null || loginState is EnhancedLoginState.Error,
                     enter = fadeIn() + expandVertically(),
                     exit = fadeOut() + shrinkVertically()
                 ) {
                     val errorMsg = generalError ?: (loginState as? EnhancedLoginState.Error)?.message ?: ""
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer
-                        )
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF4A1215)),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Warning,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = errorMsg,
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
+                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.Warning, null, tint = Color(0xFFFF6B6B), modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(10.dp))
+                            Text(errorMsg, color = Color(0xFFFF6B6B), fontSize = 14.sp)
                         }
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(Modifier.height(16.dp))
                 }
-                
-                // Loading state
+
+                // Loading
                 if (loginState is EnhancedLoginState.Loading) {
-                    CircularProgressIndicator(color = PrimaryViolet)
-                    Spacer(modifier = Modifier.height(8.dp))
+                    CircularProgressIndicator(color = PrimaryViolet, modifier = Modifier.size(36.dp))
+                    Spacer(Modifier.height(8.dp))
                     Text(
-                        text = if (authMode == AuthMode.SignIn) "Signing in..." else "Creating account...",
-                        style = MaterialTheme.typography.bodyMedium
+                        if (authMode == AuthMode.SignIn) "Signing in..." else "Creating account...",
+                        color = SubTextOnDark, fontSize = 14.sp
                     )
                 } else {
-                    // Display name field (Sign Up only) with AnimatedContent transition
+                    // Display Name (Sign Up only)
                     AnimatedVisibility(
                         visible = authMode == AuthMode.SignUp,
-                        enter = fadeIn(animationSpec = tween(300)) + expandVertically(animationSpec = tween(300)),
-                        exit = fadeOut(animationSpec = tween(200)) + shrinkVertically(animationSpec = tween(200))
-                    ) {
-                        OutlinedTextField(
-                            value = displayName,
-                            onValueChange = { displayName = it },
-                            label = { Text("Display Name") },
-                            leadingIcon = {
-                                Icon(Icons.Filled.Person, contentDescription = null, tint = PrimaryViolet)
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = PrimaryViolet,
-                                unfocusedBorderColor = Color.LightGray,
-                                focusedLabelColor = PrimaryViolet
-                            )
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
-                    
-                    // Email field with premium styling
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = { 
-                            email = it
-                            emailError = null
-                        },
-                        label = { Text("Email") },
-                        leadingIcon = {
-                            Icon(Icons.Filled.Email, contentDescription = null, tint = PrimaryViolet)
-                        },
-                        isError = emailError != null,
-                        supportingText = emailError?.let { { Text(it) } },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Email,
-                            imeAction = ImeAction.Next
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = PrimaryViolet,
-                            unfocusedBorderColor = Color.LightGray,
-                            focusedLabelColor = PrimaryViolet
-                        )
-                    )
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    // Password field with premium styling
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = { 
-                            password = it
-                            passwordError = null
-                        },
-                        label = { Text("Password") },
-                        leadingIcon = {
-                            Icon(Icons.Filled.Lock, contentDescription = null, tint = PrimaryViolet)
-                        },
-                        trailingIcon = {
-                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                Icon(
-                                    imageVector = if (passwordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                    contentDescription = if (passwordVisible) "Hide password" else "Show password"
-                                )
-                            }
-                        },
-                        isError = passwordError != null,
-                        supportingText = passwordError?.let { { Text(it) } },
-                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Password,
-                            imeAction = if (authMode == AuthMode.SignUp) ImeAction.Next else ImeAction.Done
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = PrimaryViolet,
-                            unfocusedBorderColor = Color.LightGray,
-                            focusedLabelColor = PrimaryViolet
-                        )
-                    )
-                    
-                    // Confirm password field (Sign Up only) with smooth transition
-                    AnimatedVisibility(
-                        visible = authMode == AuthMode.SignUp,
-                        enter = fadeIn(animationSpec = tween(300)) + expandVertically(animationSpec = tween(300)),
-                        exit = fadeOut(animationSpec = tween(200)) + shrinkVertically(animationSpec = tween(200))
+                        enter = fadeIn(tween(300)) + expandVertically(tween(300)),
+                        exit = fadeOut(tween(200)) + shrinkVertically(tween(200))
                     ) {
                         Column {
-                            Spacer(modifier = Modifier.height(12.dp))
-                            OutlinedTextField(
+                            Text("Full Name", color = SubTextOnDark, fontSize = 13.sp, modifier = Modifier.padding(bottom = 6.dp))
+                            DarkTextField(
+                                value = displayName,
+                                onValueChange = { displayName = it },
+                                placeholder = "Full Name",
+                                leadingIcon = Icons.Filled.Person,
+                                imeAction = ImeAction.Next
+                            )
+                            Spacer(Modifier.height(16.dp))
+                        }
+                    }
+
+                    // Email
+                    Text("Email", color = SubTextOnDark, fontSize = 13.sp, modifier = Modifier.align(Alignment.Start).padding(bottom = 6.dp))
+                    DarkTextField(
+                        value = email,
+                        onValueChange = { email = it; emailError = null },
+                        placeholder = "Email address",
+                        leadingIcon = Icons.Filled.Email,
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Next,
+                        isError = emailError != null,
+                        errorText = emailError
+                    )
+
+                    Spacer(Modifier.height(16.dp))
+
+                    // Password
+                    Text("Password", color = SubTextOnDark, fontSize = 13.sp, modifier = Modifier.align(Alignment.Start).padding(bottom = 6.dp))
+                    DarkTextField(
+                        value = password,
+                        onValueChange = { password = it; passwordError = null },
+                        placeholder = "Enter Password",
+                        leadingIcon = Icons.Filled.Lock,
+                        keyboardType = KeyboardType.Password,
+                        imeAction = if (authMode == AuthMode.SignUp) ImeAction.Next else ImeAction.Done,
+                        isPassword = true,
+                        passwordVisible = passwordVisible,
+                        onTogglePassword = { passwordVisible = !passwordVisible },
+                        isError = passwordError != null,
+                        errorText = passwordError
+                    )
+
+                    // Confirm password (Sign Up only)
+                    AnimatedVisibility(
+                        visible = authMode == AuthMode.SignUp,
+                        enter = fadeIn(tween(300)) + expandVertically(tween(300)),
+                        exit = fadeOut(tween(200)) + shrinkVertically(tween(200))
+                    ) {
+                        Column {
+                            Spacer(Modifier.height(16.dp))
+                            Text("Confirm Password", color = SubTextOnDark, fontSize = 13.sp, modifier = Modifier.padding(bottom = 6.dp))
+                            DarkTextField(
                                 value = confirmPassword,
                                 onValueChange = { confirmPassword = it },
-                                label = { Text("Confirm Password") },
-                                leadingIcon = {
-                                    Icon(Icons.Filled.Lock, contentDescription = null, tint = PrimaryViolet)
-                                },
-                                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Password,
-                                    imeAction = ImeAction.Done
-                                ),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = PrimaryViolet,
-                                    unfocusedBorderColor = Color.LightGray,
-                                    focusedLabelColor = PrimaryViolet
-                                )
+                                placeholder = "Confirm Password",
+                                leadingIcon = Icons.Filled.Lock,
+                                keyboardType = KeyboardType.Password,
+                                imeAction = ImeAction.Done,
+                                isPassword = true,
+                                passwordVisible = passwordVisible,
+                                onTogglePassword = { passwordVisible = !passwordVisible }
                             )
                         }
                     }
-                    
-                    // Forgot Password link (Sign In only)
+
+                    // Forgot Password (Sign In only)
                     AnimatedVisibility(
                         visible = authMode == AuthMode.SignIn,
-                        enter = fadeIn(animationSpec = tween(300)),
-                        exit = fadeOut(animationSpec = tween(200))
+                        enter = fadeIn(tween(300)),
+                        exit = fadeOut(tween(200))
                     ) {
                         Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
                             contentAlignment = Alignment.CenterEnd
                         ) {
-                            TextButton(
-                                onClick = onForgotPassword
-                            ) {
-                                Text(
-                                    text = "Forgot Password?",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = PrimaryViolet,
-                                    fontWeight = FontWeight.Medium
-                                )
+                            TextButton(onClick = onForgotPassword) {
+                                Text("Forgot Password?", color = PrimaryViolet, fontWeight = FontWeight.Medium, fontSize = 14.sp)
                             }
                         }
                     }
-                    
-                    Spacer(modifier = Modifier.height(24.dp))
-                    
-                    // Main action button
+
+                    Spacer(modifier = Modifier.height(28.dp))
+
+                    // Main CTA button (gradient)
                     Button(
                         onClick = {
                             // Validate
@@ -472,102 +399,92 @@ fun LoginScreen(
                                 }
                             }
                         },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp)
-                            .clip(RoundedCornerShape(12.dp)),
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                         contentPadding = PaddingValues(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(16.dp)
                     ) {
-                        // Gradient Button Interior
                         Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(BrandGradient),
+                            modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp)).background(BrandGradient),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = if (authMode == AuthMode.SignIn) "SIGN IN" else "CREATE ACCOUNT",
-                                fontSize = 16.sp,
+                                text = if (authMode == AuthMode.SignIn) "Log In" else "Register",
+                                fontSize = 17.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = Color.White,
+                                letterSpacing = 0.5.sp
                             )
                         }
                     }
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    // Divider with "OR"
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        HorizontalDivider(modifier = Modifier.weight(1f), color = Color.LightGray)
-                        Text(
-                            text = "  OR  ",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
-                        )
-                        HorizontalDivider(modifier = Modifier.weight(1f), color = Color.LightGray)
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // OR divider
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        HorizontalDivider(modifier = Modifier.weight(1f), color = FieldBorder)
+                        Text("  OR  ", color = SubTextOnDark, fontSize = 13.sp)
+                        HorizontalDivider(modifier = Modifier.weight(1f), color = FieldBorder)
                     }
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
-                    // Social login buttons with premium styling
+
+                    // Google Sign In Button (dark outlined)
                     OutlinedButton(
                         onClick = {
                             coroutineScope.launch {
                                 loginState = EnhancedLoginState.Loading
                                 val result = SupabaseAuthService.signInWithGoogle()
                                 when (result) {
-                                    is AuthResult.Success -> {
-                                        loginState = EnhancedLoginState.BiometricSetup
-                                    }
-                                    else -> {
-                                        loginState = EnhancedLoginState.Error("Google sign in failed")
-                                    }
+                                    is AuthResult.Success -> loginState = EnhancedLoginState.BiometricSetup
+                                    else -> loginState = EnhancedLoginState.Error("Google sign in failed")
                                 }
                             }
                         },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(
-                            brush = Brush.horizontalGradient(
-                                colors = listOf(Color.LightGray, Color.LightGray)
-                            )
-                        )
+                        modifier = Modifier.fillMaxWidth().height(54.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, FieldBorder),
+                        colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkCard)
                     ) {
-                        Text("G", modifier = Modifier.padding(end = 8.dp), color = PrimaryViolet, fontWeight = FontWeight.Bold)
-                        Text("Continue with Google", color = Color.DarkGray)
+                        Text(
+                            text = "G",
+                            color = Color(0xFF4285F4),
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 20.sp,
+                            modifier = Modifier.padding(end = 10.dp)
+                        )
+                        Text("Continue with Google", color = TextOnDark, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Sign up / Sign in switch link
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                        Text(
+                            text = if (authMode == AuthMode.SignIn) "Haven't any account? " else "Already have an account? ",
+                            color = SubTextOnDark, fontSize = 14.sp
+                        )
+                        Text(
+                            text = if (authMode == AuthMode.SignIn) "Sign up" else "Sign in",
+                            color = PrimaryViolet, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                            modifier = Modifier.clickable {
+                                authMode = if (authMode == AuthMode.SignIn) AuthMode.SignUp else AuthMode.SignIn
+                                generalError = null; emailError = null; passwordError = null
+                            }
+                        )
                     }
                 }
             }
-            
-            // Bottom section - biometric indicator
+
+            // Quick login indicator
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = if (hasQuickLoginEnabled) "🔒" else "🔓",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = if (hasQuickLoginEnabled)
-                        MaterialTheme.colorScheme.primary
-                    else
-                        MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
-                )
                 if (hasQuickLoginEnabled) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Quick Login enabled",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Icon(Icons.Filled.Fingerprint, null, tint = PrimaryViolet, modifier = Modifier.size(28.dp))
+                    Spacer(Modifier.height(4.dp))
+                    Text("Quick Login enabled", color = PrimaryViolet, fontSize = 12.sp)
                 }
             }
         }
@@ -579,31 +496,34 @@ fun LoginScreen(
                     loginState = EnhancedLoginState.Success
                     onLoginSuccess()
                 },
-                sheetState = bottomSheetState
+                sheetState = bottomSheetState,
+                containerColor = DarkCard,
+                dragHandle = { Box(Modifier.padding(vertical = 12.dp)) {
+                    Box(Modifier.width(40.dp).height(4.dp).background(FieldBorder, RoundedCornerShape(50)).align(Alignment.Center))
+                }}
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                        .padding(horizontal = 28.dp, vertical = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        text = "🔐",
-                        fontSize = 48.sp
-                    )
+                    Icon(Icons.Filled.Fingerprint, null, tint = PrimaryViolet, modifier = Modifier.size(56.dp))
                     
                     Text(
                         text = "Enable Quick Login?",
-                        style = MaterialTheme.typography.titleLarge,
+                        color = TextOnDark,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
                     )
                     
                     Text(
                         text = "Use biometrics to log in instantly next time. Fast, secure, and convenient.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
+                        color = SubTextOnDark,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center
                     )
                     
                     Spacer(modifier = Modifier.height(8.dp))
@@ -662,63 +582,120 @@ fun LoginScreen(
 }
 
 /**
- * Premium Pill-Style Auth Mode Toggle with AnimatedContent
+ * Dark Pill-Style Auth Toggle — Drivio-inspired
  */
 @Composable
-private fun PillAuthModeToggle(
+private fun DarkAuthToggle(
     currentMode: AuthMode,
     onModeChange: (AuthMode) -> Unit
 ) {
-    Surface(
-        modifier = Modifier.padding(bottom = 24.dp),
-        shape = RoundedCornerShape(50),
-        color = Color.White,
-        shadowElevation = 4.dp
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(DarkCard, RoundedCornerShape(50))
+            .border(1.dp, FieldBorder, RoundedCornerShape(50))
+            .padding(4.dp)
     ) {
-        Row(modifier = Modifier.padding(4.dp)) {
-            PillTabButton(
+        Row {
+            DarkTabButton(
                 text = "Sign In",
                 isSelected = currentMode == AuthMode.SignIn,
-                onClick = { onModeChange(AuthMode.SignIn) }
+                onClick = { onModeChange(AuthMode.SignIn) },
+                modifier = Modifier.weight(1f)
             )
-            PillTabButton(
+            DarkTabButton(
                 text = "Sign Up",
                 isSelected = currentMode == AuthMode.SignUp,
-                onClick = { onModeChange(AuthMode.SignUp) }
+                onClick = { onModeChange(AuthMode.SignUp) },
+                modifier = Modifier.weight(1f)
             )
         }
     }
 }
 
 @Composable
-private fun PillTabButton(
-    text: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    val backgroundColor by animateColorAsState(
-        targetValue = if (isSelected) PrimaryViolet else Color.Transparent,
-        animationSpec = tween(300),
-        label = "tab_bg"
-    )
-    val contentColor by animateColorAsState(
-        targetValue = if (isSelected) Color.White else Color.Gray,
-        animationSpec = tween(300),
-        label = "tab_content"
-    )
-    
+private fun DarkTabButton(text: String, isSelected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val bgColor by animateColorAsState(if (isSelected) PrimaryViolet else Color.Transparent, tween(250), label = "tab")
+    val textColor by animateColorAsState(if (isSelected) Color.White else SubTextOnDark, tween(250), label = "tabTxt")
     Button(
         onClick = onClick,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = backgroundColor,
-            contentColor = contentColor
-        ),
+        modifier = modifier.height(44.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = bgColor, contentColor = textColor),
         elevation = null,
         shape = RoundedCornerShape(50),
-        modifier = Modifier.padding(horizontal = 4.dp)
+        contentPadding = PaddingValues(horizontal = 8.dp)
     ) {
-        Text(text, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
+        Text(text, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal, fontSize = 15.sp)
     }
+}
+
+/**
+ * Dark Filled Text Field — Drivio-style
+ */
+@Composable
+private fun DarkTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    leadingIcon: androidx.compose.ui.graphics.vector.ImageVector,
+    modifier: Modifier = Modifier,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    imeAction: ImeAction = ImeAction.Next,
+    isPassword: Boolean = false,
+    passwordVisible: Boolean = false,
+    onTogglePassword: (() -> Unit)? = null,
+    isError: Boolean = false,
+    errorText: String? = null
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            placeholder = { Text(placeholder, color = SubTextOnDark.copy(alpha = 0.6f)) },
+            leadingIcon = {
+                Icon(leadingIcon, contentDescription = null, tint = if (isError) Color(0xFFFF6B6B) else SubTextOnDark, modifier = Modifier.size(20.dp))
+            },
+            trailingIcon = if (isPassword && onTogglePassword != null) {{
+                IconButton(onClick = onTogglePassword) {
+                    Icon(
+                        if (passwordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                        contentDescription = null,
+                        tint = SubTextOnDark,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }} else null,
+            visualTransformation = if (isPassword && !passwordVisible) PasswordVisualTransformation() else VisualTransformation.None,
+            isError = isError,
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedContainerColor = DarkField,
+                focusedContainerColor = DarkField,
+                errorContainerColor = Color(0xFF2A1010),
+                unfocusedBorderColor = FieldBorder,
+                focusedBorderColor = PrimaryViolet,
+                errorBorderColor = Color(0xFFFF6B6B),
+                unfocusedTextColor = TextOnDark,
+                focusedTextColor = TextOnDark,
+                errorTextColor = TextOnDark,
+                cursorColor = PrimaryViolet
+            )
+        )
+        if (isError && errorText != null) {
+            Text(errorText, color = Color(0xFFFF6B6B), fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
+        }
+    }
+}
+
+/**
+ * Legacy compat (kept so existing calls don't break)
+ */
+@Composable
+private fun PillAuthModeToggle(currentMode: AuthMode, onModeChange: (AuthMode) -> Unit) {
+    DarkAuthToggle(currentMode, onModeChange)
 }
 
 /**
@@ -1236,77 +1213,36 @@ private fun RollingTyreAnimation(
 }
 
 /**
- * Mesh Gradient Background - Animated breathing gradient effect
- * Creates a premium, dynamic background
+ * Dark Mesh Background — deep space glow effect
  */
 @Composable
-private fun MeshGradientBackground(
-    meshOffset1: Float,
-    meshOffset2: Float,
-    breathingAlpha: Float,
-    modifier: Modifier = Modifier
-) {
-    Box(modifier = modifier.fillMaxSize()) {
-        // Base gradient layer
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(BackgroundGradient)
+private fun DarkMeshBackground(breathingAlpha: Float, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.fillMaxSize().blur(80.dp)) {
+        val w = size.width
+        val h = size.height
+        // Top-left purple glow
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(PrimaryViolet.copy(alpha = breathingAlpha * 0.35f), Color.Transparent),
+                center = Offset(w * 0.15f, h * 0.15f), radius = w * 0.55f
+            ),
+            radius = w * 0.5f, center = Offset(w * 0.15f, h * 0.15f)
         )
-        
-        // Animated mesh blobs
-        Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                .blur(60.dp)
-        ) {
-            val width = size.width
-            val height = size.height
-            
-            // Top-left purple blob
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        PrimaryViolet.copy(alpha = breathingAlpha * 0.4f),
-                        SecondaryPurple.copy(alpha = breathingAlpha * 0.2f),
-                        Color.Transparent
-                    ),
-                    center = Offset(meshOffset1 * 2, meshOffset2 * 1.5f),
-                    radius = width * 0.6f
-                ),
-                radius = width * 0.5f,
-                center = Offset(meshOffset1 * 2, meshOffset2 * 1.5f)
-            )
-            
-            // Bottom-right lavender blob
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        LightLavender.copy(alpha = breathingAlpha * 0.6f),
-                        SecondaryPurple.copy(alpha = breathingAlpha * 0.3f),
-                        Color.Transparent
-                    ),
-                    center = Offset(width - meshOffset2 * 3, height - meshOffset1 * 2),
-                    radius = width * 0.5f
-                ),
-                radius = width * 0.4f,
-                center = Offset(width - meshOffset2 * 3, height - meshOffset1 * 2)
-            )
-            
-            // Center subtle glow
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = breathingAlpha * 0.3f),
-                        LightLavender.copy(alpha = breathingAlpha * 0.15f),
-                        Color.Transparent
-                    ),
-                    center = Offset(width / 2 + meshOffset1, height / 3 + meshOffset2),
-                    radius = width * 0.4f
-                ),
-                radius = width * 0.35f,
-                center = Offset(width / 2 + meshOffset1, height / 3 + meshOffset2)
-            )
-        }
+        // Bottom-right deep violet glow
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(DeepViolet.copy(alpha = breathingAlpha * 0.4f), Color.Transparent),
+                center = Offset(w * 0.85f, h * 0.85f), radius = w * 0.5f
+            ),
+            radius = w * 0.45f, center = Offset(w * 0.85f, h * 0.85f)
+        )
     }
+}
+
+/**
+ * Legacy alias kept so old callers don't break
+ */
+@Composable
+private fun MeshGradientBackground(meshOffset1: Float, meshOffset2: Float, breathingAlpha: Float, modifier: Modifier = Modifier) {
+    DarkMeshBackground(breathingAlpha, modifier)
 }
